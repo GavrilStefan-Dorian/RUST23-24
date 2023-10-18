@@ -1,30 +1,33 @@
-//P1 below , uncomment
+// P1 below , uncomment 
 
-fn add_chars_n(s: String, c: char, nr: u8) -> String {
-    let mut new_s: String = s;
-    let mut i = nr;
-    while i > 0 {
-        new_s.push(c);
-        i -= 1;
-    }
+// fn add_chars_n(s:String, c:char, nr:u8)->String {
+//     let mut new_s:String = s;
+//     let mut i=nr;
+//     while i>0 {
+//         new_s.push(c);
+//         i-=1;
+//     }
 
-    new_s
-}
+//     new_s
+// }
 
-fn main() {
-    let mut s = String::from("");
-    let mut i = 0;
-    while i < 26 {
-        let c = (i as u8 + 'a' as u8) as char;
-        s = add_chars_n(s, c, 26 - i);
 
-        i += 1;
-    }
+// fn main() {
+//     let mut s = String::from("");
+//     let mut i = 0;
+//     while i < 26 {
+//         let c = (i as u8 + 'a' as u8) as char;
+//         s = add_chars_n(s, c, 26 - i);
 
-    print!("{}", s);
-}
+//         i += 1;
+//     }
 
-//P2 below , uncomment
+//     print!("{}", s);
+// }
+
+
+
+// P2 below , uncomment
 
 // fn add_chars_n(s: &mut String, c:char, nr:u8) {
 //     let mut i=nr;
@@ -47,7 +50,10 @@ fn main() {
 //     print!("{}", s);
 // }
 
-//P3 below , uncomment
+
+
+
+// P3 below , uncomment
 
 // fn add_space(s:&mut String,nr:usize){
 //     let mut i=nr;
@@ -80,12 +86,14 @@ fn main() {
 //         }
 //     }
 
+
 // }
 
 // fn add_float(s:&mut String,nr:f32){
 //     let float_s = nr.to_string();
 //     s.push_str(&float_s);
 // }
+
 
 // fn main(){
 //     let mut s=String::from("");
@@ -95,6 +103,8 @@ fn main() {
 //     add_str(&mut s,"💚\n");
 //     add_space(&mut s,40);
 //     add_str(&mut s,"RUST.\n");
+//     add_space(&mut s,1);
+//     add_str(&mut s,"\n");
 //     add_space(&mut s,4);
 //     add_str(&mut s,"Most");
 //     add_space(&mut s,12);
@@ -118,7 +128,7 @@ fn main() {
 //     add_space(&mut s,9);
 //     add_str(&mut s,"version");
 //     add_space(&mut s,4);
-//     add_float(&mut s,2.038);
+//     add_float(&mut s,2.038); 
 //     add_str(&mut s,".\n");
 //     add_space(&mut s,20);
 
