@@ -16,10 +16,10 @@ fn main() -> Result<(), io::Error> {
                 if count == 1 {
                     s1 = col.to_string();
                 }
-                if count == 0 {
-                    println!("{s1} => {s2}");
-                }
                 count -= 1;
+            }
+            if count <= 0 {
+                println!("{s1} => {s2}");
             }
         }
     }
