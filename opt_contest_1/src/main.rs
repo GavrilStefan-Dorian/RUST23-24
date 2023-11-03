@@ -1,26 +1,42 @@
 use std::{io,fs};
 
-fn rot13() -> Result<(),&'static str> {
-    let s = fs::read_to_string("src/input.txt").unwrap();
-    let mut result = String::with_capacity(s.len());
-    let mut c1;
-    for c in s.as_bytes() {
-        c1=*c;
-        if c1 > 127 {
+fn rot13(s:&[u8]) -> Result<(),&'static str> {
+    let mut result = Vec::with_capacity(s.len());
+
+    for &c in s {
+        if c > 127 {
             return Err("Non-ASCII encountered!");
         }
-        match c1 {
-            97..=122 => result.push((((c1 - 97 + 13) % 26) + 97 ) as char),
-            65..=90 => result.push((((c1 - 65 + 13) % 26) + 65 ) as char),
-            _ => result.push(c1 as char),
-        }
+        if c > 96 && c < 123 {
+            if c + 13 > 122 {
+                result.push(c-13);
+            }
+            else {
+                result.push(c+13);
+            }
+        } 
+        else {
+            if c > 64 && c < 91 {
+                if c + 13 > 90 {
+                    result.push(c-13);
+                }
+                else {
+                    result.push(c+13);
+                }
+            } 
+              else {
+                 result.push(c);
+                   }
+        }   
     }
    Ok(())
 }
 fn main()->Result<(),io::Error> {
-    match rot13(){
-        Ok(())=> Ok(()),
+    let s = fs::read("src/input.txt")?;
+    match rot13(&s){
+        Ok(())=> (),
         Err(e)=>{fs::write("src/output.txt",e)?;
-                       Ok(())}
+            }
     }
+    Ok(())
 }
