@@ -139,10 +139,6 @@ impl Command for TimesCommand {
     }
 }
 
-// struct <urchoice>{
-
-// }
-
 impl Terminal {
     fn stop(&mut self) {
         exit(0);
@@ -154,7 +150,7 @@ fn main() -> Result<()> {
 
     terminal.register(Box::new(PingCommand {}));
     terminal.register(Box::new(CountCommand {}));
-    //terminal.register(Box::new(CountLowCommand {}));
+    terminal.register(Box::new(CountLowCommand {}));
     terminal.register(Box::new(TimesCommand { count: 0 }));
 
     terminal.run()?;
