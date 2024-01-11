@@ -8,7 +8,7 @@ use std::net::TcpStream;
 use std::thread;
 
 #[derive(Parser)]
-#[command(version, about = "IP:PORT")]
+#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -30,7 +30,6 @@ fn handle_stdin(mut stream: TcpStream, server_pub_key: RsaPublicKey) -> Result<(
             .expect("Failed to encrypt");
         stream.write_all(&enc_message.len().to_be_bytes())?;
         stream.write_all(&enc_message)?;
-        //stream.write_fmt(format_args!("{}", String::from_utf8(enc_message).unwrap()))?;
     }
 }
 
@@ -52,16 +51,12 @@ fn main() -> io::Result<()> {
             let stream_copy = stream.try_clone().expect("clone failed ...");
 
             let mut reader = BufReader::new(&stream);
-            //let mut server_pem_bytes = Vec::<u8>::new();
 
             let mut size_bytes = [0; 8];
             reader.read_exact(&mut size_bytes)?;
             let server_pem_size = usize::from_be_bytes(size_bytes);
             let mut server_pem_bytes = vec![0; server_pem_size];
             reader.read_exact(&mut server_pem_bytes)?;
-
-            //reader.read_until(b'\0', &mut server_pem_bytes)?;
-            //server_pem_bytes.remove(server_pem_bytes.len() - 1);
 
             let server_pub_key =
                 RsaPublicKey::from_public_key_pem(&String::from_utf8_lossy(&server_pem_bytes))
@@ -73,7 +68,6 @@ fn main() -> io::Result<()> {
             });
 
             loop {
-                //let mut buffer = Vec::<u8>::new();
 
                 let mut size_bytes = [0; 8];
                 match reader.read_exact(&mut size_bytes) {
@@ -88,12 +82,6 @@ fn main() -> io::Result<()> {
                 let mut message = vec![0; message_size];
                 reader.read_exact(&mut message)?;
 
-                // let mut message_string = String::new();
-
-                // for byte in message {
-                //     message_string.push(byte as char);
-                // }
-
                 let response = private_key
                     .decrypt(Pkcs1v15Encrypt, message.as_slice())
                     .expect("failed to decrypt");
@@ -101,29 +89,6 @@ fn main() -> io::Result<()> {
                     "read from server:{}\n",
                     String::from_utf8(response).unwrap()
                 );
-
-                // if let message_string = String::from_utf8_lossy(message.as_slice()){
-                //     println!("{message_string}");
-                // }
-                // else {
-                //     println!("Error at receiving message");
-                // }
-
-                //match reader.read(b'\0', &mut buffer) {
-                //     Ok(size) => {
-                //         if size == 0 {
-                //             return Ok(());
-                //         }
-                //         buffer.remove(size - 1);
-                //         println!("{:?}", String::from_utf8(buffer));
-                //         // let response = private_key.decrypt(Pkcs1v15Encrypt, buffer.as_slice()).expect("failed to decrypt");
-                //         // println!("read from server:{}\n", String::from_utf8(response).unwrap());
-                //     }
-                //     Err(e) => {
-                //         eprintln!("Failed to read from server.");
-                //         return Err(e);
-                //     }
-                // }
             }
         }
         Err(e) => {

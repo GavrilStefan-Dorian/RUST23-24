@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Parser;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::{pkcs8::EncodePublicKey, Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
@@ -8,6 +7,7 @@ use std::io::{BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::error;
 
 #[derive(Debug)]
 struct Username {
@@ -27,7 +27,7 @@ struct MessageWithReply {
 }
 
 #[derive(Parser)]
-#[command(version, about = "IP:PORT")]
+#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -72,7 +72,7 @@ impl UsersOnline {
     }
 }
 
-fn db_create_if_not_exists() -> Result<()> {
+fn db_create_if_not_exists() -> Result<(),Box<dyn error::Error>> {
     let conn = Connection::open("server_db.db")?;
 
     conn.execute(
@@ -127,7 +127,7 @@ fn write_encrypted(
     public_key: &RsaPublicKey,
     mut stream: &TcpStream,
     message: String,
-) -> Result<()> {
+) -> Result<(),Box<dyn error::Error>> {
     let mut rng = rand::thread_rng();
     let enc_message = public_key
         .encrypt(&mut rng, Pkcs1v15Encrypt, message.as_bytes())
@@ -143,12 +143,10 @@ fn handle_sender(
     stream: TcpStream,
     shared_map: Arc<Mutex<UsersOnline>>,
     server_private_key: RsaPrivateKey,
-) -> Result<()> {
+) -> Result<(),Box<dyn error::Error>> {
     let mut logged = false;
 
     let mut username = String::new();
-
-    // let mut pem_bytes =Vec::new();
     let stream_clone = stream.try_clone().expect("failed to clone");
     let mut reader = BufReader::new(stream_clone);
 
@@ -167,10 +165,6 @@ fn handle_sender(
     let public_key_client = RsaPublicKey::from_public_key_pem(&pem)?;
 
     loop {
-        //let mut buf = Vec::<u8>::new();
-
-        //let bytes_read ;
-
         let mut size_bytes = [0; 8];
         reader.read_exact(&mut size_bytes)?;
 
@@ -178,20 +172,6 @@ fn handle_sender(
 
         let mut message = vec![0; message_size];
         reader.read_exact(&mut message)?;
-
-        // match reader.read_until(b'\0', &mut buf){
-        //     Ok(size) => {
-        //         bytes_read = size;
-        //         if bytes_read == 0 {
-        //             return Ok(())
-        //         }
-        //     }
-        //     Err(e) => {
-        //         eprintln!("Failed to read from server.");
-        //         return Err(e.into());
-        //     }
-        // };
-        // println!("{:?}",buf);
 
         let dec_message = server_private_key.decrypt(Pkcs1v15Encrypt, &message)?;
         let message = String::from_utf8(dec_message)?;
@@ -279,11 +259,6 @@ fn handle_sender(
                                             public_key: public_key_client.clone(),
                                         },
                                     );
-
-                                    conn.execute(
-                                    "INSERT INTO connected_users (name,is_chatting) VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET name = ?3, is_chatting = ?4",
-                                 [&username, "1",&username,"1"],
-                                    )?;
                                 } else {
                                     stream_map.insert(
                                         username.clone(),
@@ -293,11 +268,6 @@ fn handle_sender(
                                             public_key: public_key_client.clone(),
                                         },
                                     );
-
-                                    conn.execute(
-                                    "INSERT INTO connected_users (name,is_chatting) VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET name = ?3, is_chatting = ?4",
-                                  [&username, "0",&username,"0"],
-                                )?;
                                 }
                             } else {
                                 stream_map.insert(
@@ -308,11 +278,6 @@ fn handle_sender(
                                         public_key: public_key_client.clone(),
                                     },
                                 );
-
-                                conn.execute(
-                                    "INSERT INTO connected_users (name,is_chatting) VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET name = ?3, is_chatting = ?4",
-                                    [&username, "0",&username,"0"],
-                                )?;
                             }
                         } else {
                             write_encrypted(
@@ -328,11 +293,6 @@ fn handle_sender(
                                     public_key: public_key_client.clone(),
                                 },
                             );
-
-                            conn.execute(
-                                "INSERT INTO connected_users (name,is_chatting) VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET name = ?3, is_chatting = ?4",
-                                [&username, "0",&username, "0"],
-                            )?;
                         }
 
                         logged = true;
@@ -410,11 +370,6 @@ fn handle_sender(
                                     )?;
 
                                     pair.chat_partner = username.clone();
-
-                                    conn.execute(
-                                     "UPDATE connected_users set is_chatting = 1 where name in (?1,?2)",
-                                     [lsplit.1.trim(), &pair.chat_partner],
-                                 )?;
                                 }
                             } else {
                                 write_encrypted(&public_key_client, &stream, "Recipient is offline. They will receive your messages when they go online".to_string())?;
@@ -592,7 +547,8 @@ fn handle_sender(
                     write_encrypted(&public_key_client, &stream, "Chat finished!\n".to_string())?;
                     stream_map.get_mut(&username.clone()).unwrap().chat_partner =
                         "none".to_string();
-                    if let Some(pair) = stream_map.get_mut(&recipient) {
+
+                    let pair = stream_map.get_mut(&recipient).unwrap();
                         write_encrypted(
                             &pair.public_key,
                             &pair.stream,
@@ -600,19 +556,7 @@ fn handle_sender(
                         )?;
 
                         pair.chat_partner = "none".to_string();
-
-                        let conn = Connection::open("server_db.db")?;
-                        conn.execute(
-                            "UPDATE connected_users set is_chatting = 0 where name in (?1,?2)",
-                            [recipient, username.clone()],
-                        )?;
-                    } else {
-                        let conn = Connection::open("server_db.db")?;
-                        conn.execute(
-                            "UPDATE connected_users set is_chatting = 0 where name = ?1",
-                            [username.clone()],
-                        )?;
-                    }
+                  
                 }
             }
         } else if message.starts_with("history") {
@@ -659,12 +603,6 @@ fn handle_sender(
                 if stream_map.get(&username.clone()).unwrap().chat_partner == "none" {
                     write_encrypted(&public_key_client, &stream, "Logged out!\n".to_string())?;
 
-                    let conn = Connection::open("server_db.db")?;
-                    conn.execute(
-                        "DELETE FROM connected_users where name = ?1",
-                        [username.clone()],
-                    )?;
-
                     stream_map.remove(&username.clone());
                     return Ok(());
                 } else {
@@ -687,7 +625,7 @@ fn handle_sender(
     }
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(),Box<dyn error::Error>> {
     db_create_if_not_exists()?;
 
     let args = Args::parse();
