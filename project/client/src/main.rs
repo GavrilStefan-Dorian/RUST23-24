@@ -8,7 +8,7 @@ use std::net::TcpStream;
 use std::thread;
 
 #[derive(Parser)]
-#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
+#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -18,7 +18,7 @@ struct Args {
 }
 
 fn handle_stdin(mut stream: TcpStream, server_pub_key: RsaPublicKey) -> Result<(), io::Error> {
-    println!("List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n\n");
+    println!("List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n\n");
 
     loop {
         let mut input = String::new();

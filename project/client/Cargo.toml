@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 rusqlite = "0.30.0"
-anyhow = "1.0.79"
 rand = "0.8.5"
 rsa = "0.9.6"
 clap = { version = "4", features = ["derive"] }

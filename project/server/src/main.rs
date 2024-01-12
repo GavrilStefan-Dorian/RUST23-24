@@ -9,9 +9,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::error;
 
+
 #[derive(Debug)]
 struct Username {
-    name: String,
+    name: String
 }
 
 #[derive(Debug)]
@@ -27,7 +28,7 @@ struct MessageWithReply {
 }
 
 #[derive(Parser)]
-#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
+#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -77,14 +78,8 @@ fn db_create_if_not_exists() -> Result<(),Box<dyn error::Error>> {
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS users_registry (
-                name TEXT NOT NULL UNIQUE
-                )",
-        [],
-    )?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS connected_users (
                 name TEXT NOT NULL UNIQUE,
-                is_chatting INTEGER NOT NULL
+                password TEXT NOT NULL
                 )",
         [],
     )?;
@@ -100,24 +95,24 @@ fn db_create_if_not_exists() -> Result<(),Box<dyn error::Error>> {
     )?;
 
     //      conn.execute(
-    //     "INSERT INTO users_registry (name) VALUES (?1)",
-    //     ["Stefan"],
+    //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
+    //     ["Stefan", "pass1"],
     // )?;
     // conn.execute(
-    //     "INSERT INTO users_registry (name) VALUES (?1)",
-    //     ["Tudor"],
+    //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
+    //     ["Tudor", "pass2"],
     // )?;
     // conn.execute(
-    //     "INSERT INTO users_registry (name) VALUES (?1)",
-    //     ["Dorian"],
+    //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
+    //     ["Dorian", "pass3"],
     // )?;
     // conn.execute(
-    //     "INSERT INTO users_registry (name) VALUES (?1)",
-    //     ["User D"],
+    //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
+    //     ["User D","pass4"],
     // )?;
     // conn.execute(
-    //     "INSERT INTO users_registry (name) VALUES (?1)",
-    //     ["User E"],
+    //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
+    //     ["User E", "pass5"],
     // )?;
 
     Ok(())
@@ -188,17 +183,25 @@ fn handle_sender(
                 }
 
                 if !logged {
+                    let lsplit_2 = lsplit.1.split_once(' ').unwrap_or(("none", "none"));
+                    if lsplit_2 == ("none", "none") {
+                        write_encrypted(
+                        &public_key_client, 
+                        &stream, 
+                        "Invalid format.".to_string())?;
+                    }
+                  
                     let conn = Connection::open("server_db.db")?;
                     let mut stmt =
-                        conn.prepare("SELECT name FROM users_registry where name = :name;")?;
-                    let name_iter = stmt.query_map(&[(":name", lsplit.1.trim())], |row| {
-                        Ok(Username { name: row.get(0)? })
+                        conn.prepare("SELECT name FROM users_registry where name = ?1 AND password = ?2")?;
+                    let user_iter = stmt.query_map([lsplit_2.0.trim(), lsplit_2.1.trim()], |row| {
+                        Ok(Username { name: row.get(0)?, })
                     })?;
 
                     let mut stream_map = shared_map.lock().unwrap();
 
-                    for name in name_iter {
-                        username = name.unwrap().name.clone();
+                    for user in user_iter {
+                        username = user.unwrap().name;
                         println!("Found username {:?}", username);
                         write_encrypted(
                             &public_key_client,
@@ -614,7 +617,7 @@ fn handle_sender(
                 }
             }
         } else if message.starts_with("help") {
-            write_encrypted(&public_key_client, &stream, "List of commands:\n\t1.login <username>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n".to_string())?;
+            write_encrypted(&public_key_client, &stream, "List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n".to_string())?;
         } else {
             write_encrypted(
                 &public_key_client,

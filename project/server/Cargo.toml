@@ -9,5 +9,4 @@ edition = "2021"
 rusqlite = "0.30.0"
 rand = "0.8.5"
 rsa = "0.9.6"
-thiserror = "1.0.56"
 clap = { version = "4", features = ["derive"] }
