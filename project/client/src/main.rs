@@ -8,7 +8,10 @@ use std::net::TcpStream;
 use std::thread;
 
 #[derive(Parser)]
-#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
+#[command(
+    version,
+    about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n"
+)]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -24,7 +27,7 @@ fn handle_stdin(mut stream: TcpStream, server_pub_key: RsaPublicKey) -> Result<(
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
 
-        let mut rng = rand::thread_rng(); //encrypt and send
+        let mut rng = rand::thread_rng();
         let enc_message = server_pub_key
             .encrypt(&mut rng, Pkcs1v15Encrypt, input.as_bytes())
             .expect("Failed to encrypt");
@@ -68,7 +71,6 @@ fn main() -> io::Result<()> {
             });
 
             loop {
-
                 let mut size_bytes = [0; 8];
                 match reader.read_exact(&mut size_bytes) {
                     Ok(_) => {}

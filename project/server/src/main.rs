@@ -3,16 +3,15 @@ use rsa::pkcs8::DecodePublicKey;
 use rsa::{pkcs8::EncodePublicKey, Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 use rusqlite::Connection;
 use std::collections::HashMap;
+use std::error;
 use std::io::{BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::error;
-
 
 #[derive(Debug)]
 struct Username {
-    name: String
+    name: String,
 }
 
 #[derive(Debug)]
@@ -28,7 +27,10 @@ struct MessageWithReply {
 }
 
 #[derive(Parser)]
-#[command(version, about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n")]
+#[command(
+    version,
+    about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n"
+)]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
     ip: String,
@@ -73,7 +75,7 @@ impl UsersOnline {
     }
 }
 
-fn db_create_if_not_exists() -> Result<(),Box<dyn error::Error>> {
+fn db_create_if_not_exists() -> Result<(), Box<dyn error::Error>> {
     let conn = Connection::open("server_db.db")?;
 
     conn.execute(
@@ -122,7 +124,7 @@ fn write_encrypted(
     public_key: &RsaPublicKey,
     mut stream: &TcpStream,
     message: String,
-) -> Result<(),Box<dyn error::Error>> {
+) -> Result<(), Box<dyn error::Error>> {
     let mut rng = rand::thread_rng();
     let enc_message = public_key
         .encrypt(&mut rng, Pkcs1v15Encrypt, message.as_bytes())
@@ -138,7 +140,7 @@ fn handle_sender(
     stream: TcpStream,
     shared_map: Arc<Mutex<UsersOnline>>,
     server_private_key: RsaPrivateKey,
-) -> Result<(),Box<dyn error::Error>> {
+) -> Result<(), Box<dyn error::Error>> {
     let mut logged = false;
 
     let mut username = String::new();
@@ -151,7 +153,6 @@ fn handle_sender(
     let mut client_pem_bytes = vec![0; client_pem_size];
     reader.read_exact(&mut client_pem_bytes)?;
 
-    //reader.read_until(b'\0',&mut pem_bytes)?;
     let mut pem = String::new();
     for byte in client_pem_bytes {
         pem.push(byte as char);
@@ -186,17 +187,20 @@ fn handle_sender(
                     let lsplit_2 = lsplit.1.split_once(' ').unwrap_or(("none", "none"));
                     if lsplit_2 == ("none", "none") {
                         write_encrypted(
-                        &public_key_client, 
-                        &stream, 
-                        "Invalid format.".to_string())?;
+                            &public_key_client,
+                            &stream,
+                            "Invalid format.".to_string(),
+                        )?;
                     }
-                  
+
                     let conn = Connection::open("server_db.db")?;
-                    let mut stmt =
-                        conn.prepare("SELECT name FROM users_registry where name = ?1 AND password = ?2")?;
-                    let user_iter = stmt.query_map([lsplit_2.0.trim(), lsplit_2.1.trim()], |row| {
-                        Ok(Username { name: row.get(0)?, })
-                    })?;
+                    let mut stmt = conn.prepare(
+                        "SELECT name FROM users_registry where name = ?1 AND password = ?2",
+                    )?;
+                    let user_iter = stmt
+                        .query_map([lsplit_2.0.trim(), lsplit_2.1.trim()], |row| {
+                            Ok(Username { name: row.get(0)? })
+                        })?;
 
                     let mut stream_map = shared_map.lock().unwrap();
 
@@ -552,14 +556,13 @@ fn handle_sender(
                         "none".to_string();
 
                     let pair = stream_map.get_mut(&recipient).unwrap();
-                        write_encrypted(
-                            &pair.public_key,
-                            &pair.stream,
-                            String::from("Chat finished!\n"),
-                        )?;
+                    write_encrypted(
+                        &pair.public_key,
+                        &pair.stream,
+                        String::from("Chat finished!\n"),
+                    )?;
 
-                        pair.chat_partner = "none".to_string();
-                  
+                    pair.chat_partner = "none".to_string();
                 }
             }
         } else if message.starts_with("history") {
@@ -628,7 +631,7 @@ fn handle_sender(
     }
 }
 
-fn main() -> Result<(),Box<dyn error::Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     db_create_if_not_exists()?;
 
     let args = Args::parse();
