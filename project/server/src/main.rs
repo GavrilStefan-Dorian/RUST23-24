@@ -29,7 +29,16 @@ struct MessageWithReply {
 #[derive(Parser)]
 #[command(
     version,
-    about = "cargo run [-- --IP -- PORT] \n\n List of commands:\n\t1.login <username> <password>\n\t2.start_chat <recipient>\n\t3.end_chat\n\t4.send_message <message>\n\t5.history\n\t6.reply_to <message_index> <message>\n\t7.logout\n\t8.help\n"
+    about = "cargo run [-- --IP -- PORT] \n\n 
+    List of commands:\n\t
+    1.login <username> <password>\n\t
+    2.start_chat <recipient>\n\t
+    3.end_chat\n\t
+    4.send_message <message>\n\t
+    5.history\n\t
+    6.reply_to <message_index> <message>\n\t
+    7.logout\n\t
+    8.help\n"
 )]
 struct Args {
     #[arg(long, default_value = "127.0.0.1")]
@@ -80,23 +89,25 @@ fn db_create_if_not_exists() -> Result<(), Box<dyn error::Error>> {
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS users_registry (
-                name TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
+                name VARCHAR(256) PRIMARY KEY NOT NULL,
+                password VARCHAR(256) NOT NULL
                 )",
         [],
     )?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS message_history (
-                name TEXT NOT NULL,
-                sender TEXT NOT NULL,
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(256) NOT NULL,
+                sender VARCHAR(256) NOT NULL,
                 message TEXT NOT NULL,
-                reply_to TEXT NOT NULL,
-                read INTEGER NOT NULL
+                reply_to VARCHAR(256) NOT NULL,
+                read INTEGER NOT NULL,
+                FOREIGN KEY (name) REFERENCES users_registry(name)
                 )",
         [],
     )?;
 
-    //      conn.execute(
+    // conn.execute(
     //     "INSERT INTO users_registry (name, password) VALUES (?1, ?2)",
     //     ["Stefan", "pass1"],
     // )?;
@@ -130,7 +141,7 @@ fn write_encrypted(
         .encrypt(&mut rng, Pkcs1v15Encrypt, message.as_bytes())
         .expect("Failed to encrypt");
 
-    stream.write_all(&enc_message.len().to_be_bytes())?;
+    stream.write_all(&enc_message.len().to_le_bytes())?;
     stream.write_all(enc_message.as_slice())?;
 
     Ok(())
@@ -149,7 +160,7 @@ fn handle_sender(
 
     let mut size_bytes = [0; 8];
     reader.read_exact(&mut size_bytes)?;
-    let client_pem_size = usize::from_be_bytes(size_bytes);
+    let client_pem_size = u64::from_le_bytes(size_bytes) as usize;
     let mut client_pem_bytes = vec![0; client_pem_size];
     reader.read_exact(&mut client_pem_bytes)?;
 
@@ -164,7 +175,7 @@ fn handle_sender(
         let mut size_bytes = [0; 8];
         reader.read_exact(&mut size_bytes)?;
 
-        let message_size = usize::from_be_bytes(size_bytes);
+        let message_size = u64::from_le_bytes(size_bytes) as usize;
 
         let mut message = vec![0; message_size];
         reader.read_exact(&mut message)?;
@@ -653,7 +664,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let shared_map_clone = Arc::clone(&shared_map);
         let private_key_clone = private_key.clone();
 
-        stream.write_all(&pem.len().to_be_bytes())?;
+        stream.write_all(&pem.len().to_le_bytes())?;
         stream.write_all(pem.as_bytes())?;
 
         let handle = thread::spawn(move || {
